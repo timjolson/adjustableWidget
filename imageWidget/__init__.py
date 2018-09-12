@@ -1,4 +1,4 @@
-from .img_widget import *
+from .image_widget import *
 
 import os
 widget_images = {}

@@ -2,7 +2,7 @@ from PyQt5.QtCore import QPoint, QSize
 from PyQt5.QtWidgets import QWidget
 from PyQt5.Qt import QApplication
 
-from adjustableWidget.img_widgets import widget_images, ImgDraggable, ImgAdjustable
+from imageWidget import widget_images, ImgDraggable, ImgAdjustable
 import logging, sys
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)

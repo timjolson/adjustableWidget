@@ -1,6 +1,6 @@
 from PyQt5 import QtGui
 from PyQt5.QtWidgets import QLabel
-from adjustableWidget.adjustableWidget.adjustable_widget import DraggableWidget, AdjustableWidget
+from adjustableWidget.adjustable_widget import DraggableWidget, AdjustableWidget
 
 
 class ImgDraggable(QLabel, DraggableWidget):

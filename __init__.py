@@ -1,1 +1,0 @@
-from adjustableWidget.adjustableWidget import *
