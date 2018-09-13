@@ -11,4 +11,7 @@ setup(
     version="0.5",
     packages = find_packages(),
     install_requires = ['PyQt5'],
+    dependency_links = [
+        'https://github.com/timjolson/generalutils.git'
+        ]
 )
