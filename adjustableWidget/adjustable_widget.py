@@ -11,17 +11,17 @@ class DragButtons():
     MIDDLE = QtCore.Qt.MiddleButton
 
     @classmethod
-    def items(cls):
+    def values(cls):
         for i in ['LEFT', 'RIGHT', 'MID', 'MIDDLE']:
             yield getattr(cls, i)
 
 
 class DraggableWidget(QWidget):
     # TODO: override move/resize to handle container
-    def __init__(self, parent=None, size=None, pos=None, button=QtCore.Qt.LeftButton, objectName='', **kwargs):
+    def __init__(self, parent=None, size=None, pos=None, button=QtCore.Qt.RightButton, objectName=''):
         super().__init__(parent)
 
-        assert button in DragButtons.items(), \
+        assert button in DragButtons.values(), \
             f"Invalid button '{button}'. Must be in ({DragButtons.items()})"
         self.drag_button = button
         self.setMouseTracking(True)
