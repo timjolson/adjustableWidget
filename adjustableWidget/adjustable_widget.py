@@ -25,31 +25,31 @@ class DraggableWidget():
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
         assert button in DragButtons.values(), \
-            f"Invalid button '{button}'. Must be in ({DragButtons.items()})"
+            f"Invalid button '{button}'. Must be in DragButtons)"
         self.drag_button = button
         self.setMouseTracking(True)
         self.__startPos = None
-        self.__cursorOffset = None
+        self._cursorOffset = None
 
-        if objectName:
-            self.setObjectName(objectName)
         if size:
             self.resize(size)
         if pos:
             self.move(pos)
 
     def mousePressEvent(self, event):
-        logging.debug(f"{self.name} clicked")
-        self.__startPos = None
+        self.setFocus()
         if event.button() == self.drag_button:
-            # self.setFocus()
-            self.__startPos, self.__cursorOffset = self.pos(), event.pos()
+            self.__startPos = None
+            logging.debug(f"{self.name} adjustment activated")
+            self.__startPos, self._cursorOffset = self.pos(), event.pos()
+            event.accept()
         else:
             super(type(self), self).mousePressEvent(event)
+            event.accept()
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == self.drag_button:
-            newPos = event.pos() + self.pos() - self.__cursorOffset
+        if event.buttons() == self.drag_button and self._cursorOffset:
+            newPos = event.pos() + self.pos() - self._cursorOffset
             if self.parent():
                 cx1, cy1, cx2, cy2 = self.parent().geometry().getRect()
             else:
@@ -64,19 +64,21 @@ class DraggableWidget():
                 self.move(QtCore.QPoint(x, y))
         else:
             super(type(self), self).mouseMoveEvent(event)
+        event.accept()
 
-    # def mouseReleaseEvent(self, event):
-    #     if self.__startPos is not None:  # we were dragging
-    #         moved = self.pos() - self.__startPos
-    #
-    #         if moved.manhattanLength() > 2:
-    #             event.ignore()
-    #             logging.debug(f"{self.name}moved from {(self.__startPos.x(), self.__startPos.y())}" +
-    #              f" to {(self.pos().x(), self.pos().y())}")
-    #
-    #         self.__startPos = None
-    #     else:
-    #         super().mouseReleaseEvent(event)
+    def mouseReleaseEvent(self, event):
+        if self.__startPos is not None:  # we were dragging
+            moved = self.pos() - self.__startPos
+
+            if moved.manhattanLength() > 2:
+                event.ignore()
+                logging.debug(f"{self.name}moved from {(self.__startPos.x(), self.__startPos.y())}" +
+                 f" to {(self.pos().x(), self.pos().y())}")
+
+            self.__startPos = None
+        else:
+            super(type(self), self).mouseReleaseEvent(event)
+        event.accept()
 
 
 class _edges():
@@ -102,27 +104,39 @@ class _modes():
 
 
 class AdjustModes():
-    ALL = [_modes.Left, _modes.Right, _modes.Top, _modes.Bottom, _modes.TopLeft, _modes.TopRight,
-           _modes.BottomLeft, _modes.BottomRight, _modes.Move]
-    DRAG = [_modes.Move]
+    SIZE = {_modes.Left, _modes.Right, _modes.Top, _modes.Bottom, _modes.TopLeft, _modes.TopRight, _modes.BottomLeft,
+            _modes.BottomRight}
+    DRAG = {_modes.Move}
+    ALL = SIZE.union(DRAG)
 
-    WIDTH = [_modes.Left, _modes.Right]
-    HEIGHT = [_modes.Top, _modes.Bottom]
+    WIDTHONLY = {_modes.Left, _modes.Right}
+    HEIGHTONLY = {_modes.Top, _modes.Bottom}
 
-    ANCHOR_TOP_LEFT = [_modes.Right, _modes.Bottom, _modes.BottomRight]
-    ANCHOR_BOTTOM_LEFT = [_modes.Right, _modes.Top, _modes.TopRight]
-    ANCHOR_TOP_RIGHT = [_modes.Left, _modes.Bottom, _modes.BottomLeft]
-    ANCHOR_BOTTOM_RIGHT = [_modes.Left, _modes.Top, _modes.TopLeft]
+    EDGELEFT = {_modes.Left, _modes.TopLeft, _modes.BottomLeft}
+    EDGERIGHT = {_modes.Right, _modes.TopRight, _modes.BottomRight}
+    EDGETOP = {_modes.Top, _modes.TopLeft, _modes.TopRight}
+    EDGEBOTTOM = {_modes.Bottom, _modes.BottomLeft, _modes.BottomRight}
+
+    ANCHOR_TOP = ALL - EDGETOP - DRAG
+    ANCHOR_BOTTOM = ALL - EDGEBOTTOM - DRAG
+    ANCHOR_LEFT = ALL - EDGELEFT - DRAG
+    ANCHOR_RIGHT = ALL - EDGERIGHT - DRAG
+
+    ANCHOR_TOP_LEFT = {_modes.Right, _modes.Bottom, _modes.BottomRight}
+    ANCHOR_BOTTOM_LEFT = {_modes.Right, _modes.Top, _modes.TopRight}
+    ANCHOR_TOP_RIGHT = {_modes.Left, _modes.Bottom, _modes.BottomLeft}
+    ANCHOR_BOTTOM_RIGHT = {_modes.Left, _modes.Top, _modes.TopLeft}
 
     @classmethod
-    def items(cls):
+    def values(cls):
         for k in [k for k, v in cls.__dict__.items() if isinstance(v, list)]:
             yield k
 
 
-class AdjustableWidget(DraggableWidget):
+class AdjustableWidget(QWidget, DraggableWidget):
     # TODO: add position constraint options (stick to lines or edges)
-    # TODO: constrainOnEdge(), constrainWithin(), lockPosition(), lockSize()
+    # TODO: constrainOnEdge(), constrainWithin(), setCenterPosition()
+    # TODO: add aspect ratio option
     buffer = 3
 
     cursors = \
@@ -140,23 +154,22 @@ class AdjustableWidget(DraggableWidget):
         }
 
     def __init__(self, parent=None, allowedAdjust=None, **kwargs):
-        DraggableWidget.__init__(self, parent, **kwargs)
-        self.setParent(parent)
+        super().__init__(parent, **kwargs)
         self.mode = _modes.NONE
-        # self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.setMouseTracking(True)
 
         if allowedAdjust is not None:
             assert all(len(i) == 2 for i in allowedAdjust)  # (,)
-            assert all(j in [-1, 0, 1] for i in allowedAdjust for j in i)  # -1, 0, 1
+            assert all(j in [-1, 0, 1, 2] for i in allowedAdjust for j in i)  # -1, 0, 1, 2
             self.allowedAdjust = allowedAdjust
         else:
-            self.allowedAdjust = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]]
+            self.allowedAdjust = {(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]}
 
     def mousePressEvent(self, event):
+        self.setFocus()
         if event.button() == self.drag_button:
-            # self.setFocus()
-            self.mode = self.getMoveMode(event.pos(), self.buffer)
+            self.mode = self.__getMoveMode(event.pos(), self.buffer)
 
             # moving/dragging, pass click to DraggableWidget
             if self.mode == _modes.Move:
@@ -165,9 +178,10 @@ class AdjustableWidget(DraggableWidget):
             # store size and position limits for stretching
             self._lims = self.__getSizeLimits()
         else:
-            super().mousePressEvent(event)
+            super(type(self), self).mousePressEvent(event)
+        event.accept()
 
-    def getMoveMode(self, pos, buffer):
+    def __getMoveMode(self, pos, buffer):
         x, y = _modes.Move
 
         # left
@@ -193,21 +207,57 @@ class AdjustableWidget(DraggableWidget):
         return x, y
 
     def __getSizeLimits(self):
+        # my current coords
         x1, y1, x2, y2 = self.geometry().getCoords()
-        x1_max, y1_max = x2 - self.minimumWidth(), y2 - self.minimumHeight()
+
+        # size of largest children (so widget can't cut them off)
+        smallestW, smallestH = 0, 0  # , (QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
+        for c in self.children():
+            try:
+                _, _, w, h = c.geometry().getRect()
+            except AttributeError:
+                pass
+            else:
+                if w > smallestW:
+                    smallestW = w
+                if h > smallestH:
+                    smallestH = h
+        minW = max(self.minimumWidth(), smallestW)
+        minH = max(self.minimumHeight(), smallestH)
+
+        # limits of stretch coordinates based on my own limits
+        x1_max, y1_max = x2 - minW, y2 - minH
         x1_min, y1_min = x2 - self.maximumWidth(), y2 - self.maximumHeight()
         x2_max, y2_max = x1 + self.maximumWidth(), y1 + self.maximumHeight()
-        x2_min, y2_min = x1 + self.minimumWidth(), y1 + self.minimumHeight()
+        x2_min, y2_min = x1 + minW, y1 + minH
+
+        # limits based on parent size
+        if self.parent():
+            _, _, cx2, cy2 = self.parent().geometry().getRect()
+        else:
+            _, _, cx2, cy2 = self.window().geometry().getRect()
+
+        # keep inside parent
+        x1_min = max(x1_min, 0)
+        y1_min = max(y1_min, 0)
+        x2_min = max(x2_min, 0)
+        y2_min = max(y2_min, 0)
+
+        x2_max = min(x2_max, cx2)
+        y2_max = min(y2_max, cy2)
+
         return x1, y1, x2, y2, (x1_min, x1_max), (y1_min, y1_max), (x2_min, x2_max), (y2_min, y2_max)
 
     def mouseMoveEvent(self, event):
         # not using drag_button
         if event.buttons() != self.drag_button:
             oldMode = self.mode  # store mode
-            self.mode = self.getMoveMode(event.pos(), self.buffer)  # get new mode (for hovering)
+            self.mode = self.__getMoveMode(event.pos(), self.buffer)  # get new mode (for hovering)
 
             if oldMode != self.mode:  # if mode has changed, change cursor
                 self.setCursor(QCursor(self.cursors[self.mode]))
+
+            super(type(self), self).mouseMoveEvent(event)
 
         # moving/dragging
         elif self.mode == _modes.Move:
@@ -217,33 +267,33 @@ class AdjustableWidget(DraggableWidget):
         else:
             # size limits
             x1, y1, x2, y2, \
-            (x1_min, x1_max), (y1_min, y1_max), \
-            (x2_min, x2_max), (y2_min, y2_max) = \
-                self._lims
-
-            # container limits
-            _, _, cx2, cy2 = self.parent().geometry().getRect()
+                (x1_min, x1_max), (y1_min, y1_max), \
+                (x2_min, x2_max), (y2_min, y2_max), = self._lims
 
             # event pos wrt parent
             ePos = self.mapTo(self.parent(), event.pos())
 
             if self.mode[0] == _edges.Left:
                 x1 = min(ePos.x(), x1_max)
-                x1 = max(x1, x1_min, 0)
+                x1 = max(x1, x1_min)
             elif self.mode[0] == _edges.Right:
-                x2 = max(ePos.x(), x2_min, 0)
-                x2 = min(x2, x2_max, cx2)
+                x2 = max(ePos.x(), x2_min)
+                x2 = min(x2, x2_max)
 
             if self.mode[1] == _edges.Top:
                 y1 = min(ePos.y(), y1_max)
-                y1 = max(y1, y1_min, 0)
+                y1 = max(y1, y1_min)
             elif self.mode[1] == _edges.Bottom:
-                y2 = max(ePos.y(), y2_min, 0)
-                y2 = min(y2, y2_max, cy2)
+                y2 = max(ePos.y(), y2_min)
+                y2 = min(y2, y2_max)
 
             rect = QtCore.QRect()
             rect.setCoords(x1, y1, x2, y2)
-            self.setGeometry(rect)
+            if self.geometry().getRect() != rect.getRect():
+                self.setGeometry(rect)
+
+        event.accept()
+
 
 
 class AdjustableContainer(AdjustableWidget):
