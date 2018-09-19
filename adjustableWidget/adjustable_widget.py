@@ -1,7 +1,8 @@
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QWidget, QFrame
+from PyQt5.QtWidgets import QWidget, QFrame, QWIDGETSIZE_MAX
 from PyQt5.QtGui import QCursor
 import logging
+from generalUtils import loggableQtName
 
 
 class DragButtons():
@@ -16,10 +17,12 @@ class DragButtons():
             yield getattr(cls, i)
 
 
-class DraggableWidget(QWidget):
-    # TODO: override move/resize to handle container
-    def __init__(self, parent=None, size=None, pos=None, button=QtCore.Qt.RightButton, objectName=''):
-        super().__init__(parent)
+class DraggableWidget():
+    name = loggableQtName
+
+    def __init__(self, size=None, pos=None, button=QtCore.Qt.RightButton):
+        super().__init__()
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
         assert button in DragButtons.values(), \
             f"Invalid button '{button}'. Must be in ({DragButtons.items()})"
@@ -34,20 +37,6 @@ class DraggableWidget(QWidget):
             self.resize(size)
         if pos:
             self.move(pos)
-
-    @property
-    def name(self):
-        """Property to identify instance when logging or when searching in Qt for this widget.
-        See objectName for Qt Objects.
-
-        :return: string,
-            objectName if it is set, class name if not; plus ending colon ':'
-            e.g. 'objectName:'
-        """
-        n = self.objectName()
-        if n is None or n == '':
-            n = self.__class__.__name__
-        return n + ':'
 
     def mousePressEvent(self, event):
         logging.debug(f"{self.name} clicked")
