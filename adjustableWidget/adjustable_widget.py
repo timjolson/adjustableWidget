@@ -1,5 +1,5 @@
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QWidget, QFrame, QWIDGETSIZE_MAX
+from PyQt5.QtWidgets import QWidget, QFrame, QWIDGETSIZE_MAX, QDesktopWidget
 from PyQt5.QtGui import QCursor
 import logging
 from generalUtils import loggableQtName
@@ -42,22 +42,31 @@ class DraggableWidget():
             self.__startPos = None
             logging.debug(f"{self.name} adjustment activated")
             self.__startPos, self._cursorOffset = self.pos(), event.pos()
-            event.accept()
         else:
             super(type(self), self).mousePressEvent(event)
-            event.accept()
+        event.accept()
+
+    def getContainerRect(self):
+        if self.parent():
+            return self.parent().contentsRect().getRect()
+        elif self.window() == self:
+            # cx1, cy1, cx2, cy2 = QDesktopWidget().contentsRect().getRect()
+            # cx1, cy1, cx2, cy2 = QDesktopWidget().screenGeometry(-1).getRect()
+            return QDesktopWidget().availableGeometry(self).getRect()
+        else:
+            return self.window().contentsRect().getRect()
 
     def mouseMoveEvent(self, event):
         if event.buttons() == self.drag_button and self._cursorOffset:
             newPos = event.pos() + self.pos() - self._cursorOffset
-            if self.parent():
-                cx1, cy1, cx2, cy2 = self.parent().geometry().getRect()
-            else:
-                cx1, cy1, cx2, cy2 = self.window().geometry().getRect()
+            cx1, cy1, cx2, cy2 = self.getContainerRect()
 
-            x = max(newPos.x(), 0)
+            if (cx1, cy1) != (0, 0):
+                print('cx1, cy1 '+str((cx1, cy1)))
+
+            x = max(newPos.x(), cx1)
             x = min(cx2-self.width(), x)
-            y = max(newPos.y(), 0)
+            y = max(newPos.y(), cy1)
             y = min(cy2-self.height(), y)
 
             if (x, y) != (self.pos().x(), self.pos().y()):
@@ -135,7 +144,7 @@ class AdjustModes():
 
 class AdjustableWidget(QWidget, DraggableWidget):
     # TODO: add position constraint options (stick to lines or edges)
-    # TODO: constrainOnEdge(), constrainWithin(), setCenterPosition()
+    # TODO: constrainOnEdge(), setCenterPosition()
     # TODO: add aspect ratio option
     buffer = 3
 
@@ -174,9 +183,9 @@ class AdjustableWidget(QWidget, DraggableWidget):
             # moving/dragging, pass click to DraggableWidget
             if self.mode == _modes.Move:
                 DraggableWidget.mousePressEvent(self, event)
-
-            # store size and position limits for stretching
-            self._lims = self.__getSizeLimits()
+            else:
+                # store size and position limits for stretching
+                self._lims = self.__getSizeLimits()
         else:
             super(type(self), self).mousePressEvent(event)
         event.accept()
@@ -210,39 +219,21 @@ class AdjustableWidget(QWidget, DraggableWidget):
         # my current coords
         x1, y1, x2, y2 = self.geometry().getCoords()
 
-        # size of largest children (so widget can't cut them off)
-        smallestW, smallestH = 0, 0  # , (QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
-        for c in self.children():
-            try:
-                _, _, w, h = c.geometry().getRect()
-            except AttributeError:
-                pass
-            else:
-                if w > smallestW:
-                    smallestW = w
-                if h > smallestH:
-                    smallestH = h
-        minW = max(self.minimumWidth(), smallestW)
-        minH = max(self.minimumHeight(), smallestH)
-
         # limits of stretch coordinates based on my own limits
-        x1_max, y1_max = x2 - minW, y2 - minH
-        x1_min, y1_min = x2 - self.maximumWidth(), y2 - self.maximumHeight()
-        x2_max, y2_max = x1 + self.maximumWidth(), y1 + self.maximumHeight()
-        x2_min, y2_min = x1 + minW, y1 + minH
+        x1_min, x1_max = x2 - self.maximumWidth(), x2 - self.minimumWidth()
+        y1_min, y1_max = y2 - self.maximumHeight(), y2 - self.minimumHeight()
+        x2_min, x2_max = x1 + self.minimumWidth(), x1 + self.maximumWidth()
+        y2_min, y2_max = y1 + self.minimumHeight(), y1 + self.maximumHeight()
 
         # limits based on parent size
+        cx1, cy1, cx2, cy2 = self.getContainerRect()
         if self.parent():
-            _, _, cx2, cy2 = self.parent().geometry().getRect()
-        else:
-            _, _, cx2, cy2 = self.window().geometry().getRect()
+            cx2 -= 1
+            cy2 -= 1
 
         # keep inside parent
         x1_min = max(x1_min, 0)
         y1_min = max(y1_min, 0)
-        x2_min = max(x2_min, 0)
-        y2_min = max(y2_min, 0)
-
         x2_max = min(x2_max, cx2)
         y2_max = min(y2_max, cy2)
 
@@ -317,6 +308,26 @@ class AdjustableContainer(AdjustableWidget):
     # TODO: implement as superclass (then make QFrame, QWidget, QGroupBox from it)
     # TODO: child management & repositioning on resize
     pass
+    # # size of largest children (so widget can't cut them off)
+    # smallestW, smallestH = 0, 0  # , (QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
+    # for c in self.children():
+    #     try:
+    #         _, _, w, h = c.geometry().getRect()
+    #     except AttributeError:
+    #         pass
+    #     else:
+    #         if w > smallestW:
+    #             smallestW = w
+    #         if h > smallestH:
+    #             smallestH = h
+    # minW = max(self.minimumWidth(), smallestW)
+    # minH = max(self.minimumHeight(), smallestH)
+
+    # limits of stretch coordinates based on my own limits
+    # x1_max, y1_max = x2 - minW, y2 - minH
+    # x1_min, y1_min = x2 - self.maximumWidth(), y2 - self.maximumHeight()
+    # x2_max, y2_max = x1 + self.maximumWidth(), y1 + self.maximumHeight()
+    # x2_min, y2_min = x1 + minW, y1 + minH
 
 
 __all__ = ['DraggableWidget', 'DragButtons', 'AdjustableWidget', 'AdjustModes']
