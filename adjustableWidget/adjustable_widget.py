@@ -294,6 +294,23 @@ class AdjustableWidget(QWidget, DraggableWidget):
 
         event.accept()
 
+    def disableAdjust(self, lock):
+        self.allowedAdjust -= lock
+
+    def enableAdjust(self, enable):
+        self.allowedAdjust += enable
+
+    def setFixedSize(self, *__args):
+        self.allowedAdjust -= AdjustModes.SIZE
+        super().setFixedSize(*__args)
+
+    def setFixedHeight(self, p_int):
+        self.allowedAdjust -= set.union(AdjustModes.EDGETOP, AdjustModes.EDGEBOTTOM)
+        super().setFixedHeight(p_int)
+
+    def setFixedWidth(self, p_int):
+        self.allowedAdjust -= set.union(AdjustModes.EDGELEFT, AdjustModes.EDGERIGHT)
+        super().setFixedWidth(p_int)
 
 
 class AdjustableContainer(AdjustableWidget):
