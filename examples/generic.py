@@ -12,8 +12,6 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 class DeleteableWidget():
     def __init__(self, *args, **kwargs):
-        print('deletable init')
-        print(kwargs)
         super().__init__(*args, **kwargs)
 
     def keyPressEvent(self, QKeyEvent):
@@ -22,22 +20,34 @@ class DeleteableWidget():
         else:
             super(type(self), self).keyPressEvent(QKeyEvent)
 
-class Button(QPushButton, DeleteableWidget, DraggableWidget):
-# class Button(QPushButton, DraggableWidget, DeleteableWidget):
-    # keyPressEvent = deleteEvent
-    pass
+class Button(QPushButton, DraggableWidget, DeleteableWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.clicked.connect(self.showClick)
+
+    def showClick(self):
+        logging.info(self.name + 'Button Clicked')
 
 class EditBox(QLineEdit, AdjustableWidget):
     pass
 
 class Label(QLabel, DeleteableWidget, AdjustableWidget):
-    # keyPressEvent = deleteEvent
-    pass
+    def mouseReleaseEvent(self, event):
+        if self.dragStartPos:  # we were dragging
+            moved = self.pos() - self.dragStartPos
+
+            if moved.manhattanLength() > 2:
+                event.ignore()
+                logging.debug(f"{self.name}moved from {(self.dragStartPos.x(), self.dragStartPos.y())}" +
+                 f" to {(self.pos().x(), self.pos().y())}")
+
+            self.dragStartPos = None
+        else:
+            super(type(self), self).mouseReleaseEvent(event)
+        event.accept()
 
 class Combo(QComboBox, AdjustableWidget):
     def __init__(self, parent=None, **kwargs):
-        print('combo init')
-        print(kwargs)
         AdjustableWidget.__init__(self, parent, **kwargs)
         self.addItems([*'1234567890'])
 
@@ -48,8 +58,6 @@ app = QApplication([])
 win = AdjustableWidget(button=DragButtons.MID, objectName='win')
 win.setGeometry(200,200,400,500)
 
-print('adjustable done')
-
 
 E = EditBox(win, button=DragButtons.MID, objectName='E')
 E.move(50,100)
@@ -59,24 +67,19 @@ E.setMinimumSize(QSize(50,20))
 # e.setFixedHeight(20)
 # e.setFixedWidth(80)
 
-print('editbox done')
-
 B = Button(win, objectName='B')
 B.setText('Button Object')
 B.resize(100, 80)
 
-print('button done')
 
 L = Label(B, objectName='L')
 L.setText('Label Object')
 L.setFrameStyle(1)
 
-print('label done')
 
 C = Combo(E, button=DragButtons.RIGHT, objectName='C')
 C.move(80,0)
 
-print('combo done')
 
 # TODO: debug combo box size jump
 
