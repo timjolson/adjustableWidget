@@ -13,5 +13,6 @@ setup(
     install_requires = ['PyQt5'],
     dependency_links = [
         'https://github.com/timjolson/generalutils.git'
-        ]
+        ],
+    tests_require = ['pytest'],
 )

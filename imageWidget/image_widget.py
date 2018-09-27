@@ -5,7 +5,7 @@ from adjustableWidget.adjustable_widget import DraggableWidget, AdjustableWidget
 
 class ImgDraggable(QLabel, DraggableWidget):
     def __init__(self, parent=None, img=None, **kwargs):
-        DraggableWidget.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         if img is None:
             self.setFrameStyle(1)
@@ -19,7 +19,7 @@ class ImgDraggable(QLabel, DraggableWidget):
 
 class ImgAdjustable(QLabel, AdjustableWidget):
     def __init__(self, parent=None, img=None, **kwargs):
-        AdjustableWidget.__init__(self, parent, **kwargs)
+        super().__init__(parent, **kwargs)
 
         if img is None:
             self.setFrameStyle(1)
