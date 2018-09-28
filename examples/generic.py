@@ -55,11 +55,11 @@ class Combo(QComboBox, AdjustableWidget):
 app = QApplication([])
 
 # win = QWidget()
-win = AdjustableWidget(button=DragButtons.MID, objectName='win')
+win = AdjustableWidget(buttons=[DragButtons.MID, DragButtons.SHIFT], objectName='win')
 win.setGeometry(200,200,400,500)
 
 
-E = EditBox(win, button=DragButtons.MID, objectName='E')
+E = EditBox(win, buttons=DragButtons.MID, objectName='E')
 E.move(50,100)
 E.setMinimumSize(QSize(50,20))
 # e.setMaximumSize(QSize(150,200))
@@ -67,17 +67,17 @@ E.setMinimumSize(QSize(50,20))
 # e.setFixedHeight(20)
 # e.setFixedWidth(80)
 
-B = Button(win, objectName='B')
+B = Button(win, objectName='B', buttons=[DragButtons.RIGHT, DragButtons.SHIFT])
 B.setText('Button Object')
 B.resize(100, 80)
 
 
-L = Label(B, objectName='L')
+L = Label(B, objectName='L', buttons=[DragButtons.RIGHT, DragButtons.CTRL])
 L.setText('Label Object')
 L.setFrameStyle(1)
 
 
-C = Combo(E, button=DragButtons.RIGHT, objectName='C')
+C = Combo(E, buttons=DragButtons.RIGHT, objectName='C')
 C.move(80,0)
 
 

@@ -2,24 +2,34 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import QWidget, QFrame, QWIDGETSIZE_MAX, QDesktopWidget
 from PyQt5.QtGui import QCursor
 import logging
-from generalUtils import loggableQtName
+from generalUtils import loggableQtName, eventMatchesButtons
 
 
 class DragButtons():
     LEFT = QtCore.Qt.LeftButton
     RIGHT = QtCore.Qt.RightButton
-    MID = QtCore.Qt.MidButton
-    MIDDLE = QtCore.Qt.MiddleButton
+    MID = MIDDLE = QtCore.Qt.MidButton
+    CTRL = CONTROL = QtCore.Qt.CTRL
+    SHIFT = QtCore.Qt.ShiftModifier
+    ALT = QtCore.Qt.AltModifier
+    META = QtCore.Qt.MetaModifier
+    # http://pyqt.sourceforge.net/Docs/PyQt4/qt.html#KeyboardModifier-enum
+    # Note: On Mac OS X, the ControlModifier value corresponds to the Command keys on the Macintosh keyboard,
+    #       and the MetaModifier value corresponds to the Control keys.
+    # Note: On Windows Keyboards, Qt.MetaModifier and Qt.Key_Meta are mapped to the Windows key.
 
 
 class DraggableWidget():
     name = loggableQtName
 
-    def __init__(self, size=None, pos=None, button=QtCore.Qt.RightButton):
+    def __init__(self, size=None, pos=None, buttons=QtCore.Qt.RightButton, containerRect=None):
         super().__init__()
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
-        self.dragButton = button
+        if not hasattr(buttons, '__iter__'):
+            buttons = list({buttons})
+
+        self.dragButtons = buttons
         self.setMouseTracking(True)
         self.dragStartPos = None
         self._cursorOffset = None
@@ -31,7 +41,7 @@ class DraggableWidget():
 
     def mousePressEvent(self, QMouseEvent):
         self.setFocus()
-        if QMouseEvent.button() == self.dragButton:
+        if eventMatchesButtons(QMouseEvent, self.dragButtons):
             logging.debug(f"{self.name}dragging activated")
             self.dragStartPos, self._cursorOffset = self.pos(), QMouseEvent.pos()
         else:
@@ -49,7 +59,7 @@ class DraggableWidget():
             return self.window().contentsRect().getRect()
 
     def mouseMoveEvent(self, QMouseEvent):
-        if QMouseEvent.buttons() == self.dragButton and self._cursorOffset:
+        if eventMatchesButtons(QMouseEvent, self.dragButtons) and self._cursorOffset:
             newPos = QMouseEvent.pos() + self.pos() - self._cursorOffset
             cx1, cy1, cx2, cy2 = self.getContainerRect()
 
@@ -146,21 +156,21 @@ class AdjustableWidget(QWidget, DraggableWidget):
         else:
             self.allowedAdjust = {(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]}
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, QMouseEvent):
         self.setFocus()
-        if event.button() == self.dragButton:
-            self.mode = self.__getMoveMode(event.pos(), self.buffer)
+        if eventMatchesButtons(QMouseEvent, self.dragButtons):
+            self.mode = self.__getMoveMode(QMouseEvent.pos(), self.buffer)
 
             # moving/dragging, pass click to DraggableWidget
             if self.mode == _modes.Move:
-                DraggableWidget.mousePressEvent(self, event)
+                DraggableWidget.mousePressEvent(self, QMouseEvent)
             elif self.mode != _modes.NONE:
                 # store size and position limits for stretching
                 self._lims = self.__getSizeLimits()
                 logging.debug(f"{self.name}adjustment activated")
         else:
-            super(type(self), self).mousePressEvent(event)
-        event.accept()
+            super(type(self), self).mousePressEvent(QMouseEvent)
+            QMouseEvent.accept()
 
     def __getMoveMode(self, pos, buffer):
         x, y = _modes.Move
@@ -211,20 +221,20 @@ class AdjustableWidget(QWidget, DraggableWidget):
 
         return x1, y1, x2, y2, (x1_min, x1_max), (y1_min, y1_max), (x2_min, x2_max), (y2_min, y2_max)
 
-    def mouseMoveEvent(self, event):
-        # not using dragButton
-        if event.buttons() != self.dragButton:
+    def mouseMoveEvent(self, QMouseEvent):
+        # not using dragButtons
+        if not eventMatchesButtons(QMouseEvent, self.dragButtons):
             oldMode = self.mode  # store mode
-            self.mode = self.__getMoveMode(event.pos(), self.buffer)  # get new mode (for hovering)
+            self.mode = self.__getMoveMode(QMouseEvent.pos(), self.buffer)  # get new mode (for hovering)
 
             if oldMode != self.mode:  # if mode has changed, change cursor
                 self.setCursor(QCursor(self.cursors[self.mode]))
 
-            super(type(self), self).mouseMoveEvent(event)
+            super(type(self), self).mouseMoveEvent(QMouseEvent)
 
         # moving/dragging
         elif self.mode == _modes.Move:
-            DraggableWidget.mouseMoveEvent(self, event)
+            DraggableWidget.mouseMoveEvent(self, QMouseEvent)
 
         elif self.mode == _modes.NONE:
             pass
@@ -237,7 +247,7 @@ class AdjustableWidget(QWidget, DraggableWidget):
                 (x2_min, x2_max), (y2_min, y2_max), = self._lims
 
             # event pos wrt parent
-            ePos = self.mapTo(self.parent(), event.pos())
+            ePos = self.mapTo(self.parent(), QMouseEvent.pos())
 
             if self.mode[0] == _edges.Left:
                 x1 = min(ePos.x(), x1_max)
@@ -258,7 +268,7 @@ class AdjustableWidget(QWidget, DraggableWidget):
             if self.geometry().getRect() != rect.getRect():
                 self.setGeometry(rect)
 
-        event.accept()
+        QMouseEvent.accept()
 
     def disableAdjust(self, disable):
         self.allowedAdjust -= disable
@@ -311,4 +321,4 @@ class AdjustableContainer(AdjustableWidget):
     # x2_min, y2_min = x1 + minW, y1 + minH
 
 
-__all__ = ['DraggableWidget', 'DragButtons', 'AdjustableWidget', 'AdjustModes']
+__all__ = ['DraggableWidget', 'DragButtons', 'AdjustableWidget', 'AdjustModes', 'QWIDGETSIZE_MAX']
