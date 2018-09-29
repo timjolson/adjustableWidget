@@ -5,7 +5,7 @@ from PyQt5.Qt import QApplication
 
 import logging, sys
 
-from adjustableWidget import DraggableWidget, AdjustableWidget, DragButtons
+from adjustableWidget import DraggableWidget, AdjustableWidget, DragButtons, AdjustModes
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
@@ -29,7 +29,8 @@ class Button(QPushButton, DraggableWidget, DeleteableWidget):
         logging.info(self.name + 'Button Clicked')
 
 class EditBox(QLineEdit, AdjustableWidget):
-    pass
+    def __init__(self, parent=None, **kwargs):
+        AdjustableWidget.__init__(self, parent, defaultCursor=Qt.IBeamCursor, **kwargs)
 
 class Label(QLabel, DeleteableWidget, AdjustableWidget):
     def mouseReleaseEvent(self, event):
