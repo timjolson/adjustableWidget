@@ -29,3 +29,6 @@ class ImgAdjustable(QLabel, AdjustableWidget):
 
     def resizeEvent(self, QResizeEvent):
         self.setPixmap(self.pixmap.scaled(QResizeEvent.size().width(), QResizeEvent.size().height()))
+
+
+__all__ = ['ImgDraggable', 'ImgAdjustable']

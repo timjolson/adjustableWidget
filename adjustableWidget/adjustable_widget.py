@@ -150,11 +150,9 @@ class AdjustableWidget(QWidget, DraggableWidget):
         self.mode = _modes.NONE
 
         if allowedAdjust is not None:
-            assert all(len(i) == 2 for i in allowedAdjust)  # (,)
-            assert all(j in [-1, 0, 1, 2] for i in allowedAdjust for j in i)  # -1, 0, 1, 2
             self.allowedAdjust = allowedAdjust
         else:
-            self.allowedAdjust = {(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]}
+            self.allowedAdjust = AdjustModes.ALL
 
         from copy import copy
         self.cursors = copy(cursors)
@@ -242,9 +240,6 @@ class AdjustableWidget(QWidget, DraggableWidget):
         # moving/dragging
         elif self.mode == _modes.Move:
             DraggableWidget.mouseMoveEvent(self, QMouseEvent)
-
-        elif self.mode == _modes.NONE:
-            pass
 
         # stretching
         else:
