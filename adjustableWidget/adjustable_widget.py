@@ -34,6 +34,9 @@ class DraggableWidget():
         self.dragStartPos = None
         self._cursorOffset = None
 
+        if containerRect and callable(containerRect):
+            self.getContainerRect = lambda x: containerRect()
+
         if size:
             self.resize(size)
         if pos:
