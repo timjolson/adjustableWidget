@@ -16,20 +16,6 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-class DragButtons():
-    LEFT = QtCore.Qt.LeftButton
-    RIGHT = QtCore.Qt.RightButton
-    MID = MIDDLE = QtCore.Qt.MidButton
-    CTRL = CONTROL = QtCore.Qt.CTRL
-    SHIFT = QtCore.Qt.ShiftModifier
-    ALT = QtCore.Qt.AltModifier
-    META = QtCore.Qt.MetaModifier
-    # http://pyqt.sourceforge.net/Docs/PyQt4/qt.html#KeyboardModifier-enum
-    # Note: On Mac OS X, the ControlModifier value corresponds to the Command keys on the Macintosh keyboard,
-    #       and the MetaModifier value corresponds to the Control keys.
-    # Note: On Windows Keyboards, Qt.MetaModifier and Qt.Key_Meta are mapped to the Windows key.
-
-
 class _edges():
     Left = -1
     Right = 1
@@ -50,31 +36,6 @@ class _modes():
     BottomRight = (_edges.Right, _edges.Bottom)
     Move = (_edges.Move, _edges.Move)
     NONE = (_edges.NONE, _edges.NONE)
-
-
-class AdjustModes():
-    SIZE = {_modes.Left, _modes.Right, _modes.Top, _modes.Bottom, _modes.TopLeft,
-            _modes.TopRight, _modes.BottomLeft, _modes.BottomRight}
-    DRAG = {_modes.Move}
-    ALL = FULL = SIZE.union(DRAG)
-
-    WIDTHONLY = {_modes.Left, _modes.Right}
-    HEIGHTONLY = {_modes.Top, _modes.Bottom}
-
-    EDGELEFT = {_modes.Left, _modes.TopLeft, _modes.BottomLeft}
-    EDGERIGHT = {_modes.Right, _modes.TopRight, _modes.BottomRight}
-    EDGETOP = {_modes.Top, _modes.TopLeft, _modes.TopRight}
-    EDGEBOTTOM = {_modes.Bottom, _modes.BottomLeft, _modes.BottomRight}
-
-    ANCHOR_TOP = (ALL - EDGETOP)
-    ANCHOR_BOTTOM = (ALL - EDGEBOTTOM)
-    ANCHOR_LEFT = (ALL - EDGELEFT)
-    ANCHOR_RIGHT = (ALL - EDGERIGHT)
-
-    ANCHOR_TOP_LEFT = (SIZE - EDGELEFT) - EDGETOP
-    ANCHOR_BOTTOM_LEFT = (SIZE - EDGELEFT) - EDGEBOTTOM
-    ANCHOR_TOP_RIGHT = (SIZE - EDGERIGHT) - EDGETOP
-    ANCHOR_BOTTOM_RIGHT = (SIZE - EDGERIGHT) - EDGEBOTTOM
 
 
 _cursors = {
@@ -98,12 +59,51 @@ class AdjustableMixin():
     _adjustableDefaultArgs = {'adjustButtons':None, 'allowedAdjustments':None,
                               'containerRect':None, 'defaultCursor':None}
 
+    class DragButtons():
+        """
+        http://pyqt.sourceforge.net/Docs/PyQt4/qt.html#KeyboardModifier-enum
+        Note: On Mac OS X, the ControlModifier value corresponds to the Command keys on the Macintosh keyboard,
+              and the MetaModifier value corresponds to the Control keys.
+        Note: On Windows Keyboards, Qt.MetaModifier and Qt.Key_Meta are mapped to the Windows key.
+        """
+        LEFT = QtCore.Qt.LeftButton
+        RIGHT = QtCore.Qt.RightButton
+        MID = MIDDLE = QtCore.Qt.MidButton
+        CTRL = CONTROL = QtCore.Qt.CTRL
+        SHIFT = QtCore.Qt.ShiftModifier
+        ALT = QtCore.Qt.AltModifier
+        META = QtCore.Qt.MetaModifier
+
+    class AdjustModes():
+        SIZE = {_modes.Left, _modes.Right, _modes.Top, _modes.Bottom, _modes.TopLeft,
+                _modes.TopRight, _modes.BottomLeft, _modes.BottomRight}
+        DRAG = {_modes.Move}
+        ALL = FULL = SIZE.union(DRAG)
+
+        WIDTHONLY = {_modes.Left, _modes.Right}
+        HEIGHTONLY = {_modes.Top, _modes.Bottom}
+
+        EDGELEFT = {_modes.Left, _modes.TopLeft, _modes.BottomLeft}
+        EDGERIGHT = {_modes.Right, _modes.TopRight, _modes.BottomRight}
+        EDGETOP = {_modes.Top, _modes.TopLeft, _modes.TopRight}
+        EDGEBOTTOM = {_modes.Bottom, _modes.BottomLeft, _modes.BottomRight}
+
+        ANCHOR_TOP = (ALL - EDGETOP)
+        ANCHOR_BOTTOM = (ALL - EDGEBOTTOM)
+        ANCHOR_LEFT = (ALL - EDGELEFT)
+        ANCHOR_RIGHT = (ALL - EDGERIGHT)
+
+        ANCHOR_TOP_LEFT = (SIZE - EDGELEFT) - EDGETOP
+        ANCHOR_BOTTOM_LEFT = (SIZE - EDGELEFT) - EDGEBOTTOM
+        ANCHOR_TOP_RIGHT = (SIZE - EDGERIGHT) - EDGETOP
+        ANCHOR_BOTTOM_RIGHT = (SIZE - EDGERIGHT) - EDGEBOTTOM
+
     @classmethod
     def popArgs(cls, kwargs):
         '''
         Removes AdjustableMixin's kwargs from passed in dict.
-        :param kwargs: {}, kwargs passed into the using/sub class
-        :return: {}, kwargs for AdjustableMixin.__init__
+        :param kwargs: dict, kwargs passed into the sub class
+        :return: dict, kwargs for AdjustableMixin.__init__
         '''
         adjustableArgs = {}
         for k, v in cls._adjustableDefaultArgs.items():
@@ -128,7 +128,7 @@ class AdjustableMixin():
         self._adjustmentDragStartPos = None
         self._adjustmentCursorOffset = None
         self._adjustmentMode = _modes.NONE
-        self._allowedAdjustments = allowedAdjustments or AdjustModes.ALL
+        self._allowedAdjustments = allowedAdjustments or AdjustableMixin.AdjustModes.ALL
 
         from copy import copy
         self._adjustmentCursors = copy(_cursors)
@@ -294,19 +294,19 @@ class AdjustableMixin():
         self._allowedAdjustments = self._allowedAdjustments.union(enable)
 
     def setFixedSize(self, *args):
-        self._allowedAdjustments -= AdjustModes.SIZE
+        self._allowedAdjustments -= AdjustableMixin.AdjustModes.SIZE
         if len(args)>0 and args[0] in [None, False]:
             args = (QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
         super().setFixedSize(*args)
 
     def setFixedHeight(self, p_int):
-        self._allowedAdjustments -= set.union(AdjustModes.EDGETOP, AdjustModes.EDGEBOTTOM)
+        self._allowedAdjustments -= set.union(AdjustableMixin.AdjustModes.EDGETOP, AdjustableMixin.AdjustModes.EDGEBOTTOM)
         if not p_int:
             p_int = QWIDGETSIZE_MAX
         super().setFixedHeight(p_int)
 
     def setFixedWidth(self, p_int):
-        self._allowedAdjustments -= set.union(AdjustModes.EDGELEFT, AdjustModes.EDGERIGHT)
+        self._allowedAdjustments -= set.union(AdjustableMixin.AdjustModes.EDGELEFT, AdjustableMixin.AdjustModes.EDGERIGHT)
         if not p_int:
             p_int = QWIDGETSIZE_MAX
         super().setFixedWidth(p_int)
@@ -337,7 +337,7 @@ class AdjustableContainer(AdjustableMixin):
     # x2_min, y2_min = x1 + minW, y1 + minH
 
 
-class ImgAdjustable(QLabel, AdjustableMixin):
+class AdjustableImage(QLabel, AdjustableMixin):
     def __init__(self, parent=None, img=None, **kwargs):
         aArgs = AdjustableMixin.popArgs(kwargs)
         super().__init__(parent, **kwargs)
@@ -355,5 +355,5 @@ class ImgAdjustable(QLabel, AdjustableMixin):
         self.setPixmap(self.pixmap.scaled(QResizeEvent.size().width(), QResizeEvent.size().height()))
 
 
-__all__ = ['DragButtons', 'AdjustableMixin', 'AdjustableContainer', 'AdjustModes', 'QWIDGETSIZE_MAX',
-           'ImgAdjustable']
+__all__ = ['AdjustableMixin', 'AdjustableContainer', 'QWIDGETSIZE_MAX',
+           'AdjustableImage']
