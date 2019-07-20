@@ -130,8 +130,7 @@ class AdjustableMixin():
         self._adjustmentMode = _modes.NONE
         self._allowedAdjustments = allowedAdjustments or AdjustableMixin.AdjustModes.ALL
 
-        from copy import copy
-        self._adjustmentCursors = copy(_cursors)
+        self._adjustmentCursors = _cursors.copy()
         if defaultCursor is not None:
             self._adjustmentCursors[_modes.NONE] = defaultCursor
 
@@ -295,7 +294,7 @@ class AdjustableMixin():
 
     def setFixedSize(self, *args):
         self._allowedAdjustments -= AdjustableMixin.AdjustModes.SIZE
-        if len(args)>0 and args[0] in [None, False]:
+        if len(args)>0 and all(a in [None, False] for a in args):
             args = (QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
         super().setFixedSize(*args)
 
